@@ -53,8 +53,11 @@ decl_error! {
 		ProofAlreadyExist,
 		ClaimNotExist,
 		NotClaimOwner,
+		ClaimTooLong
 	}
 }
+
+const MAX_CLAIM_SIZE: usize = 1024;
 
 // Dispatchable functions allows users to interact with the pallet and invoke state changes.
 // These functions materialize as "extrinsics", which are often compared to transactions.
@@ -68,6 +71,7 @@ decl_module! {
 		// claim 存证hash值
 		#[weight = 0]
 		pub fn create_claim(origin, claim: Vec<u8>) -> dispatch::DispatchResult {
+			ensure!(claim.len() <= MAX_CLAIM_SIZE, Error::<T>::ClaimTooLong);
 			// https://substrate.dev/docs/en/knowledgebase/runtime/origin
 			let sender = ensure_signed(origin)?; // 签名的用户id
 
