@@ -6,7 +6,7 @@
 
 use frame_support::{
 	decl_module, decl_storage, decl_event, ensure,
-	decl_error, dispatch, traits::Get
+	decl_error, dispatch
 };
 use frame_system::ensure_signed;
 use sp_std::prelude::*;
