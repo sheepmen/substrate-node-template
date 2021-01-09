@@ -268,6 +268,10 @@ impl pallet_template::Trait for Runtime {
 impl poe::Trait for Runtime {
 	type Event = Event;
 }
+impl kitties::Trait for Runtime {
+	type Event = Event;
+	type Randomness = RandomnessCollectiveFlip;
+}
 
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -288,6 +292,7 @@ construct_runtime!(
 		// Include the custom logic from the template pallet in the runtime.
 		TemplateModule: pallet_template::{Module, Call, Storage, Event<T>},
 		PoeModule: poe::{Module, Call, Storage, Event<T>},
+		KittiesModule: kitties::{Module, Call, Storage, Event<T>},
 	}
 );
 

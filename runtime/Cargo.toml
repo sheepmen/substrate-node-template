@@ -26,6 +26,13 @@ package = 'pallet-poe'
 path = '../pallets/poe'
 version = '2.0.0'
 
+
+[dependencies.kitties]
+default-features = false
+package = 'pallet-kitties'
+path = '../pallets/kitties'
+version = '2.0.0'
+
 [dependencies]
 hex-literal = { optional = true, version = '0.3.1' }
 serde = { features = ['derive'], optional = true, version = '1.0.101' }
@@ -86,6 +93,7 @@ std = [
     'pallet-sudo/std',
     'pallet-template/std',
     'poe/std',
+    'kitties/std',
     'pallet-timestamp/std',
     'pallet-transaction-payment/std',
     'pallet-transaction-payment-rpc-runtime-api/std',
