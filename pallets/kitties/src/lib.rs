@@ -7,7 +7,7 @@ mod mock;
 mod tests;
 
 use codec::{Encode, Decode};
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, StorageValue, StorageMap, traits::Randomness};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, fail, StorageValue, StorageMap, traits::Randomness};
 use sp_io::hashing::blake2_128;
 use frame_system::ensure_signed;
 use sp_runtime::DispatchError;
@@ -36,6 +36,8 @@ decl_error! {
 	    KittiesCountOverflow,
 	    InvalidKittyId,
 	    RequireDifferentParent,
+	    KittyIdNotExist,
+	    NotKittyOwner,
 	}
 }
 
@@ -65,7 +67,17 @@ decl_module! {
 		pub fn transfer(origin, to: T::AccountId, kitty_id: KittyIndex) {
             let sender = ensure_signed(origin)?;
 
-            // TODO: error
+            // // 检查kitty是否存在
+			// ensure!(Kitties::contains_key(&kitty_id), Error::<T>::KittyIdNotExist);
+			// // 检查是否为kitty的拥有者
+			// let owner = KittyOwners::<T>::get(&kitty_id).unwrap();
+			// ensure!(owner == sender, Error::<T>::NotKittyOwner);
+
+            match KittyOwners::<T>::get(&kitty_id) {
+                Some(owner) => ensure!(owner == sender, Error::<T>::NotKittyOwner),
+                None => fail!(Error::<T>::KittyIdNotExist)
+            }
+
             <KittyOwners<T>>::insert(kitty_id, to.clone());
             Self::deposit_event(RawEvent::Transferred(sender, to, kitty_id));
 		}
