@@ -14,8 +14,7 @@ use sp_runtime::DispatchError;
 
 
 type KittyIndex = u32;
-
-#[derive(Encode, Decode)]
+#[derive(Encode, Decode, Debug)]
 pub struct Kitty(pub [u8; 16]);
 
 pub trait Trait: frame_system::Trait {
@@ -27,7 +26,15 @@ decl_storage! {
 	trait Store for Module<T: Trait> as Kitties {
         pub Kitties get(fn kitties): map hasher(blake2_128_concat) KittyIndex => Option<Kitty>;
         pub KittiesCount get(fn kitties_count): KittyIndex;
-        pub KittyOwners get(fn kitty_owner): map hasher(blake2_128_concat) KittyIndex => Option<T::AccountId>;
+        pub KittyOwners get(fn kitty_owner):
+            map
+                hasher(blake2_128_concat) KittyIndex
+                => Option<T::AccountId>;
+        pub OwnerKitties get(fn owner_kitty):
+            double_map
+                hasher(blake2_128_concat) T::AccountId,
+                hasher(blake2_128_concat) KittyIndex
+                => KittyIndex;
 	}
 }
 
@@ -77,7 +84,8 @@ decl_module! {
                 Some(owner) => ensure!(owner == sender, Error::<T>::NotKittyOwner),
                 None => fail!(Error::<T>::KittyIdNotExist)
             }
-
+            <OwnerKitties<T>>::remove(&sender, kitty_id);
+            <OwnerKitties<T>>::insert(to.clone(), kitty_id, kitty_id);
             <KittyOwners<T>>::insert(kitty_id, to.clone());
             Self::deposit_event(RawEvent::Transferred(sender, to, kitty_id));
 		}
@@ -118,6 +126,7 @@ impl<T: Trait> Module<T> {
     fn insert_kitty(owner: &T::AccountId, kitty_id: KittyIndex, kitty: Kitty) {
         Kitties::insert(kitty_id, kitty);
         KittiesCount::put(kitty_id + 1);
+        <OwnerKitties<T>>::insert(owner.clone(), kitty_id, kitty_id);
         <KittyOwners<T>>::insert(kitty_id, owner);
     }
 
