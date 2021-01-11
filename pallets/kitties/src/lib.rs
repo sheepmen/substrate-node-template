@@ -35,6 +35,15 @@ decl_storage! {
                 hasher(blake2_128_concat) T::AccountId,
                 hasher(blake2_128_concat) KittyIndex
                 => KittyIndex;
+        pub KittyParents get(fn kitty_parent):
+            map
+                hasher(blake2_128_concat) KittyIndex
+                => Option<(KittyIndex, KittyIndex)>;
+        pub KittyChildren get(fn kitty_children):
+            double_map
+                hasher(blake2_128_concat) KittyIndex, // self
+                hasher(blake2_128_concat) KittyIndex  // wife
+                => KittyIndex; // child
 	}
 }
 
@@ -45,6 +54,7 @@ decl_error! {
 	    RequireDifferentParent,
 	    KittyIdNotExist,
 	    NotKittyOwner,
+	    HaveBred,
 	}
 }
 
@@ -66,27 +76,14 @@ decl_module! {
             let kitty_id = Self::next_kitty_id()?;
             let dna = Self::random_value(&sender);
             let kitty = Kitty(dna);
-            Self::insert_kitty(&sender, kitty_id, kitty);
+            Self::insert_kitty(&sender, kitty_id, kitty, 0, 0);
             Self::deposit_event(RawEvent::Created(sender, kitty_id));
 		}
 
 		#[weight = 0]
 		pub fn transfer(origin, to: T::AccountId, kitty_id: KittyIndex) {
             let sender = ensure_signed(origin)?;
-
-            // // 检查kitty是否存在
-			// ensure!(Kitties::contains_key(&kitty_id), Error::<T>::KittyIdNotExist);
-			// // 检查是否为kitty的拥有者
-			// let owner = KittyOwners::<T>::get(&kitty_id).unwrap();
-			// ensure!(owner == sender, Error::<T>::NotKittyOwner);
-
-            match KittyOwners::<T>::get(&kitty_id) {
-                Some(owner) => ensure!(owner == sender, Error::<T>::NotKittyOwner),
-                None => fail!(Error::<T>::KittyIdNotExist)
-            }
-            <OwnerKitties<T>>::remove(&sender, kitty_id);
-            <OwnerKitties<T>>::insert(to.clone(), kitty_id, kitty_id);
-            <KittyOwners<T>>::insert(kitty_id, to.clone());
+            Self::do_transfer(&sender, &to, kitty_id)?;
             Self::deposit_event(RawEvent::Transferred(sender, to, kitty_id));
 		}
 
@@ -105,11 +102,26 @@ fn combine_dna(dna1: u8, dna2: u8, selector: u8) -> u8 {
 }
 
 impl<T: Trait> Module<T> {
+
+    fn do_transfer(sender: &T::AccountId, to: &T::AccountId, kitty_id: KittyIndex) -> sp_std::result::Result<(), DispatchError> {
+        match KittyOwners::<T>::get(&kitty_id) {
+            Some(owner) => ensure!(owner == sender.clone(), Error::<T>::NotKittyOwner),
+            None => fail!(Error::<T>::KittyIdNotExist)
+        }
+        <OwnerKitties<T>>::remove(&sender, kitty_id);
+        <OwnerKitties<T>>::insert(to.clone(), kitty_id, kitty_id);
+        <KittyOwners<T>>::insert(kitty_id, to.clone());
+        Ok(())
+    }
     fn do_breed(sender: &T::AccountId, kitty_id_1: KittyIndex, kitty_id_2: KittyIndex) -> sp_std::result::Result<KittyIndex, DispatchError> {
+        ensure!(kitty_id_1 != kitty_id_2, Error::<T>::HaveBred);
+        // 保证有序
+        let (kitty_id_1, kitty_id_2) = if kitty_id_1 < kitty_id_2 { (kitty_id_2, kitty_id_1) } else { (kitty_id_1, kitty_id_2) };
         let kitty1 = Self::kitties(kitty_id_1).ok_or(Error::<T>::InvalidKittyId)?;
         let kitty2 = Self::kitties(kitty_id_2).ok_or(Error::<T>::InvalidKittyId)?;
 
-        ensure!(kitty_id_1 != kitty_id_2, Error::<T>::RequireDifferentParent);
+        // 检查是否已经繁殖过了
+        ensure!(!KittyChildren::contains_key(kitty_id_1, kitty_id_2), Error::<T>::RequireDifferentParent);
 
         let kitty_id = Self::next_kitty_id()?;
         let kitty1_dna = kitty1.0;
@@ -119,13 +131,15 @@ impl<T: Trait> Module<T> {
         for i in 0..kitty1_dna.len() {
             new_dna[i] = combine_dna(kitty1_dna[i], kitty2_dna[i], selector[i]);
         }
-        Self::insert_kitty(&sender, kitty_id, Kitty(new_dna));
+        Self::insert_kitty(&sender, kitty_id, Kitty(new_dna), kitty_id_1, kitty_id_2);
         Ok(kitty_id)
     }
 
-    fn insert_kitty(owner: &T::AccountId, kitty_id: KittyIndex, kitty: Kitty) {
+    fn insert_kitty(owner: &T::AccountId, kitty_id: KittyIndex, kitty: Kitty, kitty_id_1: KittyIndex, kitty_id_2: KittyIndex) {
         Kitties::insert(kitty_id, kitty);
         KittiesCount::put(kitty_id + 1);
+        KittyParents::insert(kitty_id, (kitty_id_1, kitty_id_2));
+        KittyChildren::insert(kitty_id_1, kitty_id_2, kitty_id);
         <OwnerKitties<T>>::insert(owner.clone(), kitty_id, kitty_id);
         <KittyOwners<T>>::insert(kitty_id, owner);
     }
