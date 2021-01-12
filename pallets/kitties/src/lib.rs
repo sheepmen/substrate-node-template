@@ -62,7 +62,8 @@ decl_error! {
 	    RequireDifferentParent,
 	    KittyIdNotExist,
 	    NotKittyOwner,
-	    TransferToSelf
+	    TransferToSelf,
+	    BalanceInsufficent,
 	}
 }
 
@@ -82,8 +83,7 @@ decl_module! {
 		pub fn create(origin) {
             let sender = ensure_signed(origin)?;
             let kitty_id = Self::next_kitty_id()?;
-            T::Currency::reserve(&sender, 1000.into())
-                .map_err(|_| "locker can't afford to lock the amount requested")?;
+            ensure!(T::Currency::reserve(&sender, 1000.into()).is_ok(), Error::<T>::BalanceInsufficent);
             let dna = Self::random_value(&sender);
             let kitty = Kitty(dna);
             Self::insert_kitty(&sender, kitty_id, kitty, 0, 0);
@@ -134,7 +134,7 @@ impl<T: Trait> Module<T> {
         let kitty2 = Self::kitties(kitty_id_2).ok_or(Error::<T>::KittyIdNotExist)?;
 
         let kitty_id = Self::next_kitty_id()?;
-        T::Currency::reserve(&sender, 1000.into())?;
+        ensure!(T::Currency::reserve(&sender, 1000.into()).is_ok(), Error::<T>::BalanceInsufficent);
         let kitty1_dna = kitty1.0;
         let kitty2_dna = kitty2.0;
         let selector = Self::random_value(&sender);

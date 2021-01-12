@@ -13,6 +13,29 @@ fn create_kitty_works() {
 }
 
 #[test]
+fn create_kitty_failed_when_() {
+    new_test_ext().execute_with(|| {
+        run_to_block(10);
+        KittiesCount::put(KittyIndex::max_value());
+        assert_noop!(
+            KittiesTest::create(Origin::signed(1)),
+            Error::<Test>::KittiesCountOverflow
+        );
+    })
+}
+
+#[test]
+fn create_kitty_failed_when_balance_insufficient() {
+    new_test_ext().execute_with(|| {
+        run_to_block(10);
+        assert_noop!(
+            KittiesTest::create(Origin::signed(100)),
+            Error::<Test>::BalanceInsufficent
+        );
+    })
+}
+
+#[test]
 fn transfer_kitty_works() {
     new_test_ext().execute_with(|| {
         run_to_block(10);
@@ -89,6 +112,19 @@ fn breed_kitty_failed_when_kitty_id_not_exist() {
         assert_noop!(
             KittiesTest::breed(Origin::signed(2), 1, 0),
             Error::<Test>::KittyIdNotExist
+        );
+    })
+}
+
+#[test]
+fn breed_kitty_failed_when_balance_insufficient() {
+    new_test_ext().execute_with(|| {
+        run_to_block(10);
+        assert_ok!(KittiesTest::create(Origin::signed(1)));
+        assert_ok!(KittiesTest::create(Origin::signed(2)));
+        assert_noop!(
+            KittiesTest::breed(Origin::signed(100), 0, 1),
+            Error::<Test>::BalanceInsufficent
         );
     })
 }
