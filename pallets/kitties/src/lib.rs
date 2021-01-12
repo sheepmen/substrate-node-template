@@ -35,15 +35,20 @@ decl_storage! {
                 hasher(blake2_128_concat) T::AccountId,
                 hasher(blake2_128_concat) KittyIndex
                 => KittyIndex;
-        pub KittyParents get(fn kitty_parent):
+        pub Parents get(fn kitty_parent):
             map
                 hasher(blake2_128_concat) KittyIndex
                 => Option<(KittyIndex, KittyIndex)>;
-        pub KittyChildren get(fn kitty_children):
+        pub Lovers get(fn kitty_wife):
+            double_map
+                hasher(blake2_128_concat) KittyIndex, // self
+                hasher(blake2_128_concat) KittyIndex  // wife
+                => KittyIndex; // wife
+        pub Children get(fn children):
             double_map
                 hasher(blake2_128_concat) KittyIndex, // self
                 hasher(blake2_128_concat) KittyIndex  // child
-                => KittyIndex; // wife
+                => KittyIndex; // child
 	}
 }
 
@@ -133,9 +138,14 @@ impl<T: Trait> Module<T> {
     fn insert_kitty(owner: &T::AccountId, kitty_id: KittyIndex, kitty: Kitty, kitty_id_1: KittyIndex, kitty_id_2: KittyIndex) {
         Kitties::insert(kitty_id, kitty);
         KittiesCount::put(kitty_id + 1);
-        KittyParents::insert(kitty_id, (kitty_id_1, kitty_id_2));
-        KittyChildren::insert(kitty_id_1, kitty_id, kitty_id_2);
-        KittyChildren::insert(kitty_id_2, kitty_id, kitty_id_1);
+        Parents::insert(kitty_id, (kitty_id_1, kitty_id_2));
+        if kitty_id_1 != kitty_id_2 {
+            // 通过繁殖生出来的
+            Lovers::insert(kitty_id_1, kitty_id_2, kitty_id_2);
+            Lovers::insert(kitty_id_2, kitty_id_1, kitty_id_1);
+            Children::insert(kitty_id_1, kitty_id, kitty_id);
+            Children::insert(kitty_id_2, kitty_id, kitty_id);
+        }
         <OwnerKitties<T>>::insert(owner.clone(), kitty_id, kitty_id);
         <KittyOwners<T>>::insert(kitty_id, owner);
     }
@@ -155,5 +165,47 @@ impl<T: Trait> Module<T> {
             <frame_system::Module<T>>::extrinsic_index()
         );
         payload.using_encoded(blake2_128)
+    }
+
+    #[allow(dead_code)]
+    fn get_all_kitties(owner: &T::AccountId) -> sp_std::vec::Vec<KittyIndex> {
+        let mut v = sp_std::vec::Vec::new();
+        for kitty_id in <OwnerKitties<T>>::iter_prefix_values(owner) {
+            v.push(kitty_id);
+        }
+        v
+    }
+
+    #[allow(dead_code)]
+    fn get_all_children(kitty_id: KittyIndex) -> sp_std::vec::Vec<KittyIndex> {
+        let mut v = sp_std::vec::Vec::new();
+        for child in Children::iter_prefix_values(kitty_id) {
+            v.push(child);
+        }
+        v
+    }
+
+    #[allow(dead_code)]
+    fn get_parents(kitty_id: KittyIndex) -> sp_std::vec::Vec<KittyIndex> {
+        match Parents::get(kitty_id) {
+            None => sp_std::vec::Vec::new(),
+            Some((k1, k2)) => {
+                let mut v = sp_std::vec::Vec::new();
+                v.push(k1);
+                v.push(k2);
+                v
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    fn get_brothers(kitty_id: KittyIndex) -> sp_std::vec::Vec<KittyIndex> {
+        let parents = Self::get_parents(kitty_id);
+        let mut v = sp_std::vec::Vec::new();
+        for p in parents {
+            let mut c = Self::get_all_children(p);
+            v.append(&mut c);
+        }
+        v
     }
 }
