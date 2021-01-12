@@ -7,8 +7,9 @@ mod mock;
 mod tests;
 
 use codec::{Encode, Decode};
-use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, fail, StorageValue, StorageMap, traits::Randomness};
+use frame_support::{decl_module, decl_storage, decl_event, decl_error, ensure, fail,  StorageValue, StorageMap, traits::{Randomness, Currency, ExistenceRequirement::AllowDeath, ReservableCurrency}};
 use sp_io::hashing::blake2_128;
+// use frame_system::{self as system, ensure_signed};
 use frame_system::ensure_signed;
 use sp_runtime::DispatchError;
 
@@ -17,9 +18,12 @@ type KittyIndex = u32;
 #[derive(Encode, Decode, Debug)]
 pub struct Kitty(pub [u8; 16]);
 
+// type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
+
 pub trait Trait: frame_system::Trait {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
     type Randomness: Randomness<Self::Hash>;
+    type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 }
 
 decl_storage! {
@@ -77,6 +81,8 @@ decl_module! {
 		pub fn create(origin) {
             let sender = ensure_signed(origin)?;
             let kitty_id = Self::next_kitty_id()?;
+            T::Currency::reserve(&sender, 1000.into())
+                .map_err(|_| "locker can't afford to lock the amount requested")?;
             let dna = Self::random_value(&sender);
             let kitty = Kitty(dna);
             Self::insert_kitty(&sender, kitty_id, kitty, 0, 0);
@@ -111,6 +117,8 @@ impl<T: Trait> Module<T> {
             Some(owner) => ensure!(owner == sender.clone(), Error::<T>::NotKittyOwner),
             None => fail!(Error::<T>::KittyIdNotExist)
         }
+        T::Currency::unreserve(&sender, 1000.into());
+        T::Currency::transfer(&sender, &to, 1000.into(), AllowDeath)?;
         <OwnerKitties<T>>::remove(&sender, kitty_id);
         <OwnerKitties<T>>::insert(to.clone(), kitty_id, kitty_id);
         <KittyOwners<T>>::insert(kitty_id, to.clone());
@@ -124,6 +132,7 @@ impl<T: Trait> Module<T> {
         let kitty2 = Self::kitties(kitty_id_2).ok_or(Error::<T>::KittyIdNotExist)?;
 
         let kitty_id = Self::next_kitty_id()?;
+        T::Currency::reserve(&sender, 1000.into())?;
         let kitty1_dna = kitty1.0;
         let kitty2_dna = kitty2.0;
         let selector = Self::random_value(&sender);

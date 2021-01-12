@@ -40,6 +40,7 @@ pub use frame_support::{
 
 /// Import the template pallet.
 pub use pallet_template;
+use frame_system::Trait;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -271,6 +272,7 @@ impl poe::Trait for Runtime {
 impl kitties::Trait for Runtime {
 	type Event = Event;
 	type Randomness = RandomnessCollectiveFlip;
+	type Currency = Balances;
 }
 
 

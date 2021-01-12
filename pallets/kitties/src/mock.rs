@@ -18,6 +18,7 @@ impl_outer_event! {
     pub enum TestEvent for Test {
 		system<T>,
 		kitties_event<T>,
+		pallet_balances<T>,
 	}
 }
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -27,6 +28,8 @@ parameter_types! {
     pub const MaximumBlockWeight: Weight = 1024;
     pub const MaximumBlockLength: u32 = 2 * 1024;
     pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+
+    pub const ExistentialDeposit: u64 = 1;
 }
 impl system::Trait for Test {
     type Origin = Origin;
@@ -50,22 +53,43 @@ impl system::Trait for Test {
     type Version = ();
     type SystemWeightInfo = ();
     type PalletInfo = ();
-    type AccountData = ();
+    type AccountData = pallet_balances::AccountData<u64>;
     type OnNewAccount = ();
     type OnKilledAccount = ();
     type BaseCallFilter = ();
 }
+impl pallet_balances::Trait for Test {
+    type Balance = u64;
+    type MaxLocks = ();
+    type Event = TestEvent;
+    type DustRemoval = ();
+    type ExistentialDeposit = ExistentialDeposit;
+    type AccountStore = system::Module<Test>;
+    type WeightInfo = ();
+}
 type Randomness = pallet_randomness_collective_flip::Module<Test>;
+type Balances = pallet_balances::Module<Test>;
 impl Trait for Test {
     type Event = TestEvent;
     type Randomness = Randomness;
+    type Currency = pallet_balances::Module<Test>;
 }
 
 pub type KittiesTest = Module<Test>;
 pub type System = frame_system::Module<Test>;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+    let mut t = system::GenesisConfig::default()
+        .build_storage::<Test>()
+        .unwrap();
+    pallet_balances::GenesisConfig::<Test> {
+        balances: vec![(1, 10000), (2, 11000), (3, 12000), (4, 13000), (5, 14000)],
+    }
+        .assimilate_storage(&mut t)
+        .unwrap();
+    let mut ext: sp_io::TestExternalities = t.into();
+    ext.execute_with(|| System::set_block_number(1));
+    ext
 }
 
 pub fn run_to_block(n: u64) {
