@@ -62,6 +62,7 @@ decl_error! {
 	    RequireDifferentParent,
 	    KittyIdNotExist,
 	    NotKittyOwner,
+	    TransferToSelf
 	}
 }
 
@@ -92,6 +93,7 @@ decl_module! {
 		#[weight = 0]
 		pub fn transfer(origin, to: T::AccountId, kitty_id: KittyIndex) {
             let sender = ensure_signed(origin)?;
+            ensure!(to != sender, Error::<T>::TransferToSelf);
             Self::do_transfer(&sender, &to, kitty_id)?;
             Self::deposit_event(RawEvent::Transferred(sender, to, kitty_id));
 		}

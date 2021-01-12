@@ -72,7 +72,7 @@ type Balances = pallet_balances::Module<Test>;
 impl Trait for Test {
     type Event = TestEvent;
     type Randomness = Randomness;
-    type Currency = pallet_balances::Module<Test>;
+    type Currency = Balances;
 }
 
 pub type KittiesTest = Module<Test>;
