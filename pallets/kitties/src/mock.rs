@@ -73,6 +73,7 @@ impl Trait for Test {
     type Event = TestEvent;
     type Randomness = Randomness;
     type Currency = Balances;
+    type KittyIndex = u32;
 }
 
 pub type KittiesTest = Module<Test>;

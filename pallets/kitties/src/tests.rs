@@ -16,7 +16,7 @@ fn create_kitty_works() {
 fn create_kitty_failed_when_() {
     new_test_ext().execute_with(|| {
         run_to_block(10);
-        KittiesCount::put(KittyIndex::max_value());
+        KittiesCount::<Test>::put(<mock::Test as Trait>::KittyIndex::max_value());
         assert_noop!(
             KittiesTest::create(Origin::signed(1)),
             Error::<Test>::KittiesCountOverflow
