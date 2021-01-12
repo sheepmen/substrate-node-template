@@ -1,7 +1,7 @@
 use crate::{Module, Trait};
 
 use sp_core::H256;
-use frame_support::{impl_outer_origin, parameter_types, weights::Weight, traits::OnFinalize, traits::OnInitialize};
+use frame_support::{impl_outer_origin, impl_outer_event ,parameter_types, weights::Weight, traits::OnFinalize, traits::OnInitialize};
 use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
 };
@@ -9,6 +9,16 @@ use frame_system as system;
 
 impl_outer_origin! {
     pub enum Origin for Test {}
+}
+
+mod kitties_event {
+    pub use crate::Event;
+}
+impl_outer_event! {
+    pub enum TestEvent for Test {
+		system<T>,
+		kitties_event<T>,
+	}
 }
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Test;
@@ -28,7 +38,7 @@ impl system::Trait for Test {
     type AccountId = u64;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
-    type Event = ();
+    type Event = TestEvent;
     type BlockHashCount = BlockHashCount;
     type MaximumBlockWeight = MaximumBlockWeight;
     type DbWeight = ();
@@ -47,7 +57,7 @@ impl system::Trait for Test {
 }
 type Randomness = pallet_randomness_collective_flip::Module<Test>;
 impl Trait for Test {
-    type Event = ();
+    type Event = TestEvent;
     type Randomness = Randomness;
 }
 
